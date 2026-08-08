@@ -71,10 +71,6 @@ impl Loader {
                 for (command, completion) in &module.manifest.api.completions {
                     let escaped_completion = Helper::sq_escape(completion);
                     let escaped_command = Helper::sq_escape(command);
-                    output.push_str(&format!(
-                        "compdef {} {}",
-                        escaped_completion, escaped_command
-                    ));
                     completions.push(format!(
                         "compdef {} {}",
                         escaped_completion, escaped_command
@@ -91,20 +87,22 @@ impl Loader {
             let loaded = module.status == ModuleStatus::Loaded;
             let event_mode = module.manifest.load_mode() == crate::core::manifest::LoadMode::Event;
 
-            if loaded && event_mode
-                && let Some(ref load) = module.manifest.load {
-                    for event in &load.events {
-                        let native_hook = if event.starts_with("periodic") {
-                            "periodic".to_string()
-                        } else {
-                            event.clone()
-                        };
-                        subscribers
-                            .entry(native_hook)
-                            .or_default()
-                            .push((event.clone(), module));
-                    }
+            if loaded
+                && event_mode
+                && let Some(ref load) = module.manifest.load
+            {
+                for event in &load.events {
+                    let native_hook = if event.starts_with("periodic") {
+                        "periodic".to_string()
+                    } else {
+                        event.clone()
+                    };
+                    subscribers
+                        .entry(native_hook)
+                        .or_default()
+                        .push((event.clone(), module));
                 }
+            }
         }
 
         if subscribers.is_empty() {
@@ -233,23 +231,24 @@ impl Loader {
         for module in modules {
             if module.status == ModuleStatus::Loaded
                 && module.manifest.load_mode() == crate::core::manifest::LoadMode::Event
-                && let Some(ref load_meta) = module.manifest.load {
-                    for event in &load_meta.events {
-                        if event.starts_with("periodic") {
-                            active_hooks.insert("periodic".to_string());
-                            let interval: u64 = event
-                                .split_once(':')
-                                .and_then(|(_, second)| second.trim().parse().ok())
-                                .unwrap_or(10);
-                            periodic_vars.push(format!(
-                                "_gai_last_run_{}_{}",
-                                module.manifest.module.name, interval
-                            ));
-                        } else {
-                            active_hooks.insert(event.clone());
-                        }
+                && let Some(ref load_meta) = module.manifest.load
+            {
+                for event in &load_meta.events {
+                    if event.starts_with("periodic") {
+                        active_hooks.insert("periodic".to_string());
+                        let interval: u64 = event
+                            .split_once(':')
+                            .and_then(|(_, second)| second.trim().parse().ok())
+                            .unwrap_or(10);
+                        periodic_vars.push(format!(
+                            "_gai_last_run_{}_{}",
+                            module.manifest.module.name, interval
+                        ));
+                    } else {
+                        active_hooks.insert(event.clone());
                     }
                 }
+            }
         }
 
         if !active_hooks.is_empty() {
